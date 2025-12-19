@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarPlus, Calendar, ArrowLeft, Trash2, Clock } from 'lucide-react';
+import { CalendarPlus, Calendar, ArrowLeft, Trash2, Clock, Send, X, Copy, Check, MessageCircle } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
 
@@ -15,6 +15,11 @@ const Events = () => {
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showNotifyModal, setShowNotifyModal] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [devotees, setDevotees] = useState([]);
+    const [copied, setCopied] = useState(false);
+    const [loadingDevotees, setLoadingDevotees] = useState(false);
 
     const mandapId = localStorage.getItem('mandapId');
     const role = localStorage.getItem('role');
@@ -104,6 +109,57 @@ const Events = () => {
 
     const isUpcoming = (dateString) => {
         return new Date(dateString) >= new Date().setHours(0, 0, 0, 0);
+    };
+
+    const fetchDevotees = async () => {
+        setLoadingDevotees(true);
+        try {
+            const q = query(
+                collection(db, "offerings"),
+                where("mandapId", "==", mandapId)
+            );
+            const querySnapshot = await getDocs(q);
+            const phoneNumbers = new Set();
+            querySnapshot.docs.forEach(doc => {
+                const phone = doc.data().phone;
+                if (phone && phone.length >= 10) {
+                    phoneNumbers.add(phone);
+                }
+            });
+            setDevotees(Array.from(phoneNumbers));
+        } catch (err) {
+            console.error("Error fetching devotees: ", err);
+        } finally {
+            setLoadingDevotees(false);
+        }
+    };
+
+    const handleNotifyDevotees = async (event) => {
+        setSelectedEvent(event);
+        setShowNotifyModal(true);
+        setCopied(false);
+        await fetchDevotees();
+    };
+
+    const buildNotificationMessage = () => {
+        if (!selectedEvent) return '';
+        return `🙏 *${mandapName || 'Mandap'} - Event Notification*\n\n📅 *${selectedEvent.title}*\n🗓️ Date: ${formatDate(selectedEvent.date)}\n${selectedEvent.description ? `\n📝 ${selectedEvent.description}` : ''}\n\nYou are cordially invited! 🎉`;
+    };
+
+    const copyToClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(buildNotificationMessage());
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+        }
+    };
+
+    const closeModal = () => {
+        setShowNotifyModal(false);
+        setSelectedEvent(null);
+        setDevotees([]);
     };
 
     return (
@@ -217,8 +273,8 @@ const Events = () => {
                                     <div
                                         key={event.id}
                                         className={`p-4 rounded-xl border ${isUpcoming(event.date)
-                                                ? 'bg-white/80 border-orange-200'
-                                                : 'bg-gray-50 border-gray-200 opacity-60'
+                                            ? 'bg-white/80 border-orange-200'
+                                            : 'bg-gray-50 border-gray-200 opacity-60'
                                             }`}
                                     >
                                         <div className="flex items-start justify-between">
@@ -236,13 +292,24 @@ const Events = () => {
                                                 )}
                                             </div>
                                             {role === 'admin' && (
-                                                <button
-                                                    onClick={() => handleDeleteEvent(event.id)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Delete Event"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex gap-1">
+                                                    {isUpcoming(event.date) && (
+                                                        <button
+                                                            onClick={() => handleNotifyDevotees(event)}
+                                                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                            title="Send to Devotees"
+                                                        >
+                                                            <Send className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDeleteEvent(event.id)}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Delete Event"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -257,6 +324,88 @@ const Events = () => {
                     </motion.div>
                 </div>
             </div>
+
+            {/* Notification Modal */}
+            {showNotifyModal && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                    onClick={closeModal}
+                >
+                    <motion.div
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">Send to Devotees</h3>
+                            <button
+                                onClick={closeModal}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        {/* Message Preview */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Message to Send</label>
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm">
+                                {buildNotificationMessage()}
+                            </div>
+                            <button
+                                onClick={copyToClipboard}
+                                className={`mt-3 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold transition-all ${copied
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                    }`}
+                            >
+                                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                {copied ? 'Copied!' : 'Copy Message'}
+                            </button>
+                        </div>
+
+                        {/* Devotee List */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Devotees ({devotees.length})
+                            </label>
+                            {loadingDevotees ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    Loading devotees...
+                                </div>
+                            ) : devotees.length > 0 ? (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {devotees.map((phone, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                                        >
+                                            <span className="font-mono text-sm">{phone}</span>
+                                            <a
+                                                href={`https://wa.me/91${phone}?text=${encodeURIComponent(buildNotificationMessage())}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors"
+                                            >
+                                                <MessageCircle className="w-3 h-3" />
+                                                Send
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <p>No devotees found for this mandap.</p>
+                                    <p className="text-sm mt-1">Devotees are added when they make offerings.</p>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
         </div>
     );
 };
