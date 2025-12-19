@@ -225,10 +225,16 @@ const DonationForm = () => {
                     </div>
 
                     {mandapName && (
-                        <h2 className="text-3xl font-bold text-orange-800 mb-3 tracking-wide uppercase">{mandapName}</h2>
+                        <div className="mb-4">
+                            <h2 className="text-3xl font-bold text-orange-800 mb-1 tracking-wide uppercase">{mandapName}</h2>
+                            <p className="text-orange-700 italic font-medium text-lg">"गणेश विघ्न हटाते नहीं, वे विवेक से नियंत्रित करते हैं"</p>
+                        </div>
                     )}
                     <h1 className="text-4xl font-bold text-gray-900 mb-4">New Offering Entry</h1>
-                    <p className="text-lg text-gray-600">Please fill in the devotee's details below.</p>
+                    <p className="text-lg text-gray-600 mb-2">Please fill in the devotee's details below.</p>
+                    <p className="text-sm text-orange-600 italic max-w-lg mx-auto leading-relaxed">
+                        "Ganesha does not remove every obstacle; he places some to protect you and removes others to guide you"
+                    </p>
                 </div>
 
                 <motion.form

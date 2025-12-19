@@ -117,7 +117,10 @@ const OfferingsList = () => {
 
                 <div className="mb-8 text-center">
                     {mandapName && (
-                        <h2 className="text-3xl font-bold text-orange-800 mb-3 tracking-wide uppercase">{mandapName}</h2>
+                        <div className="mb-4">
+                            <h2 className="text-3xl font-bold text-orange-800 mb-1 tracking-wide uppercase">{mandapName}</h2>
+                            <p className="text-orange-700 italic font-medium">"गणेश विघ्न हटाते नहीं, वे विवेक से नियंत्रित करते हैं"</p>
+                        </div>
                     )}
                     <h1 className="text-3xl font-bold text-gray-900">Offerings History (v2.0)</h1>
                     <p className="text-gray-500 mt-2">List of all devotees who have contributed</p>
