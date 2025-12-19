@@ -211,6 +211,9 @@ const Events = () => {
                         <h2 className="text-3xl font-bold text-orange-800 mb-3 tracking-wide uppercase">{mandapName}</h2>
                     )}
                     <h1 className="text-3xl font-bold text-gray-900">Event Schedule</h1>
+                    <p className="text-sm text-orange-600 italic mt-2 max-w-lg mx-auto leading-relaxed">
+                        "Ganesha does not remove every obstacle; he places some to protect you and removes others to guide you"
+                    </p>
                     <p className="text-gray-600 mt-2">
                         {role === 'admin' ? 'Manage events for your Mandap' : 'View upcoming events'}
                     </p>
