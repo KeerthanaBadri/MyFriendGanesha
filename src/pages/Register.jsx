@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserPlus, Lock, User, ArrowLeft, Building2 } from 'lucide-react';
 import { db } from '../firebase';
-import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -61,11 +61,11 @@ const Register = () => {
         }
 
         try {
-            // Check availability
-            const q = query(collection(db, "users"), where("username", "==", formData.username));
-            const querySnapshot = await getDocs(q);
+            // Check availability using getDoc (more efficient than query for ID)
+            const userDocRef = doc(db, "users", formData.username);
+            const userDoc = await getDoc(userDocRef);
 
-            if (!querySnapshot.empty) {
+            if (userDoc.exists()) {
                 setError('Username already exists');
                 return;
             }
@@ -81,10 +81,11 @@ const Register = () => {
             });
 
             // Save to Firestore as Admin (Linked to Mandap)
-            await addDoc(collection(db, "users"), {
+            // Using username as document ID ensures absolute uniqueness
+            await setDoc(doc(db, "users", formData.username), {
                 username: formData.username,
                 password: formData.password,
-                mandapId: mandapId, // Only store ID, Name is in mandaps collection
+                mandapId: mandapId,
                 role: 'admin',
                 createdAt: new Date().toISOString()
             });
