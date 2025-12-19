@@ -22,6 +22,24 @@ const Register = () => {
     const handleRegister = async (e) => {
         e.preventDefault();
 
+        // Validate empty fields first
+        if (!formData.mandapName.trim()) {
+            setError('Mandap Name is required');
+            return;
+        }
+        if (!formData.username.trim()) {
+            setError('Username is required');
+            return;
+        }
+        if (!formData.password.trim()) {
+            setError('Password is required');
+            return;
+        }
+        if (!formData.confirmPassword.trim()) {
+            setError('Please confirm your password');
+            return;
+        }
+
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
             return;
@@ -29,6 +47,11 @@ const Register = () => {
 
         if (formData.username.length < 3) {
             setError('Username must be at least 3 characters');
+            return;
+        }
+
+        if (formData.password.length < 4) {
+            setError('Password must be at least 4 characters');
             return;
         }
 

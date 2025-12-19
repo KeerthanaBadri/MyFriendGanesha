@@ -51,8 +51,16 @@ const ManageUsers = () => {
         setError('');
         setSuccess('');
 
+        if (!formData.username.trim()) {
+            setError('Username is required');
+            return;
+        }
         if (formData.username.length < 3) {
             setError('Username must be at least 3 characters');
+            return;
+        }
+        if (!formData.password.trim()) {
+            setError('Password is required');
             return;
         }
         if (formData.password.length < 4) {
@@ -93,7 +101,7 @@ const ManageUsers = () => {
         <div
             className="min-h-screen bg-orange-50 py-8 px-4 sm:px-6 lg:px-8 relative"
             style={{
-                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.9), rgba(255, 247, 237, 0.95)), url('/ganesh-bg.png')`,
+                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.7), rgba(255, 247, 237, 0.75)), url('/ganesh-bg.png')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundAttachment: 'fixed'

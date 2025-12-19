@@ -15,6 +15,16 @@ const Login = () => {
         e.preventDefault();
         setError('');
 
+        // Validate empty fields
+        if (!username.trim()) {
+            setError('Username is required');
+            return;
+        }
+        if (!password.trim()) {
+            setError('Password is required');
+            return;
+        }
+
         try {
             const q = query(collection(db, "users"), where("username", "==", username), where("password", "==", password));
             const querySnapshot = await getDocs(q);

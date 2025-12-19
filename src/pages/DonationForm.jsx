@@ -14,16 +14,71 @@ const DonationForm = () => {
         rupees: ''
     });
     const [submitted, setSubmitted] = useState(false);
+    const [errors, setErrors] = useState({});
     const navigate = useNavigate();
     const role = localStorage.getItem('role');
     const mandapName = localStorage.getItem('mandapName');
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        // Special handling for phone - only allow digits and max 10 characters
+        if (name === 'phone') {
+            const numericValue = value.replace(/\D/g, '').slice(0, 10);
+            setFormData({ ...formData, [name]: numericValue });
+        }
+        // Special handling for rupees - only allow positive numbers
+        else if (name === 'rupees') {
+            const numericValue = value.replace(/[^0-9]/g, '');
+            setFormData({ ...formData, [name]: numericValue });
+        }
+        else {
+            setFormData({ ...formData, [name]: value });
+        }
+
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors({ ...errors, [name]: '' });
+        }
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+
+        if (!formData.name.trim()) {
+            newErrors.name = 'Name is required';
+        } else if (formData.name.trim().length < 2) {
+            newErrors.name = 'Name must be at least 2 characters';
+        }
+
+        if (!formData.gothram.trim()) {
+            newErrors.gothram = 'Gothram is required';
+        }
+
+        if (!formData.phone.trim()) {
+            newErrors.phone = 'Phone number is required';
+        } else if (!/^\d{10}$/.test(formData.phone.trim())) {
+            newErrors.phone = 'Enter a valid 10-digit phone number';
+        }
+
+        if (!formData.rupees || parseFloat(formData.rupees) <= 0) {
+            newErrors.rupees = 'Amount must be greater than 0';
+        }
+
+        if (!formData.address.trim()) {
+            newErrors.address = 'Address is required';
+        } else if (formData.address.trim().length < 5) {
+            newErrors.address = 'Address must be at least 5 characters';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!validateForm()) return;
 
         try {
             // Save to Firestore
@@ -52,6 +107,7 @@ const DonationForm = () => {
             address: '',
             rupees: ''
         });
+        setErrors({});
         setSubmitted(false);
     };
 
@@ -104,16 +160,16 @@ const DonationForm = () => {
         <div
             className="min-h-screen bg-orange-50 py-12 px-4 sm:px-6 lg:px-8 relative"
             style={{
-                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.9), rgba(255, 247, 237, 0.95)), url('/ganesh-bg.png')`,
+                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.7), rgba(255, 247, 237, 0.75)), url('/ganesh-bg.png')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundAttachment: 'fixed'
             }}
         >
             <div className="max-w-3xl mx-auto">
-                <div className="text-center mb-10 relative">
-                    {/* Header Buttons */}
-                    <div className="absolute top-4 left-4 md:top-8 md:left-8 flex gap-3 z-50">
+                {/* Top Navigation Bar */}
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex gap-3">
                         <button
                             onClick={() => {
                                 localStorage.removeItem('currentUser');
@@ -146,6 +202,17 @@ const DonationForm = () => {
                         </button>
                     </div>
 
+                    <button
+                        onClick={() => navigate('/offerings')}
+                        className="p-2 bg-orange-100 rounded-full hover:bg-orange-200 text-orange-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                        title="View History"
+                    >
+                        <History className="w-5 h-5" />
+                        <span className="text-sm font-semibold">History</span>
+                    </button>
+                </div>
+
+                <div className="text-center mb-10">
                     <div className="flex items-center justify-center gap-4 mb-4">
                         <motion.div
                             initial={{ y: -20, opacity: 0 }}
@@ -157,19 +224,11 @@ const DonationForm = () => {
                         </motion.div>
                     </div>
 
-                    <button
-                        onClick={() => navigate('/offerings')}
-                        className="absolute top-4 right-4 md:top-8 md:right-8 p-2 bg-orange-100 rounded-full hover:bg-orange-200 text-orange-700 transition-colors"
-                        title="View History"
-                    >
-                        <History className="w-5 h-5" />
-                    </button>
-
                     {mandapName && (
-                        <h2 className="text-xl font-semibold text-orange-800 mb-2 tracking-wide uppercase">{mandapName}</h2>
+                        <h2 className="text-3xl font-bold text-orange-800 mb-3 tracking-wide uppercase">{mandapName}</h2>
                     )}
                     <h1 className="text-4xl font-bold text-gray-900 mb-4">New Offering Entry</h1>
-                    <p className="text-lg text-gray-600 relative z-10">Please fill in the devotee's details below.</p>
+                    <p className="text-lg text-gray-600">Please fill in the devotee's details below.</p>
                 </div>
 
                 <motion.form
@@ -191,9 +250,10 @@ const DonationForm = () => {
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="input-field"
+                                className={`input-field ${errors.name ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 placeholder="Enter full name"
                             />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -203,12 +263,12 @@ const DonationForm = () => {
                             <input
                                 type="text"
                                 name="gothram"
-                                required
                                 value={formData.gothram}
                                 onChange={handleChange}
-                                className="input-field"
+                                className={`input-field ${errors.gothram ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 placeholder="Enter gothram"
                             />
+                            {errors.gothram && <p className="text-red-500 text-xs mt-1">{errors.gothram}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -220,9 +280,10 @@ const DonationForm = () => {
                                 name="phone"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="input-field"
+                                className={`input-field ${errors.phone ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 placeholder="Enter 10-digit number"
                             />
+                            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -235,9 +296,10 @@ const DonationForm = () => {
                                 min="1"
                                 value={formData.rupees}
                                 onChange={handleChange}
-                                className="input-field font-mono text-lg"
+                                className={`input-field font-mono text-lg ${errors.rupees ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 placeholder="₹ 0.00"
                             />
+                            {errors.rupees && <p className="text-red-500 text-xs mt-1">{errors.rupees}</p>}
                         </div>
                     </div>
 
@@ -248,12 +310,12 @@ const DonationForm = () => {
                         <textarea
                             name="address"
                             rows="3"
-                            required
                             value={formData.address}
                             onChange={handleChange}
-                            className="input-field resize-none"
+                            className={`input-field resize-none ${errors.address ? 'border-red-500 focus:ring-red-200' : ''}`}
                             placeholder="Enter complete address"
                         />
+                        {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
                     </div>
 
                     <div className="pt-4">

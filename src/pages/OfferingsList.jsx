@@ -71,7 +71,7 @@ const OfferingsList = () => {
         <div
             className="min-h-screen bg-orange-50 py-8 px-4 sm:px-6 lg:px-8 relative"
             style={{
-                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.9), rgba(255, 247, 237, 0.95)), url('/ganesh-bg.png')`,
+                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.7), rgba(255, 247, 237, 0.75)), url('/ganesh-bg.png')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundAttachment: 'fixed'
@@ -117,7 +117,7 @@ const OfferingsList = () => {
 
                 <div className="mb-8 text-center">
                     {mandapName && (
-                        <h2 className="text-xl font-semibold text-orange-800 mb-2 tracking-wide uppercase">{mandapName}</h2>
+                        <h2 className="text-3xl font-bold text-orange-800 mb-3 tracking-wide uppercase">{mandapName}</h2>
                     )}
                     <h1 className="text-3xl font-bold text-gray-900">Offerings History (v2.0)</h1>
                     <p className="text-gray-500 mt-2">List of all devotees who have contributed</p>

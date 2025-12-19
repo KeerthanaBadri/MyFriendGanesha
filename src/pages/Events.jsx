@@ -20,6 +20,8 @@ const Events = () => {
     const [devotees, setDevotees] = useState([]);
     const [copied, setCopied] = useState(false);
     const [loadingDevotees, setLoadingDevotees] = useState(false);
+    const [sendingToAll, setSendingToAll] = useState(false);
+    const [sendProgress, setSendProgress] = useState(0);
 
     const mandapId = localStorage.getItem('mandapId');
     const role = localStorage.getItem('role');
@@ -160,13 +162,37 @@ const Events = () => {
         setShowNotifyModal(false);
         setSelectedEvent(null);
         setDevotees([]);
+        setSendingToAll(false);
+        setSendProgress(0);
+    };
+
+    const sendToAllDevotees = async () => {
+        if (devotees.length === 0) return;
+
+        setSendingToAll(true);
+        setSendProgress(0);
+
+        const message = encodeURIComponent(buildNotificationMessage());
+
+        for (let i = 0; i < devotees.length; i++) {
+            const phone = devotees[i];
+            window.open(`https://wa.me/91${phone}?text=${message}`, '_blank');
+            setSendProgress(i + 1);
+
+            // Small delay between opening tabs to avoid browser blocking
+            if (i < devotees.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        setSendingToAll(false);
     };
 
     return (
         <div
             className="min-h-screen bg-orange-50 py-8 px-4 sm:px-6 lg:px-8 relative"
             style={{
-                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.9), rgba(255, 247, 237, 0.95)), url('/ganesh-bg.png')`,
+                backgroundImage: `linear-gradient(rgba(255, 247, 237, 0.7), rgba(255, 247, 237, 0.75)), url('/ganesh-bg.png')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundAttachment: 'fixed'
@@ -182,7 +208,7 @@ const Events = () => {
 
                 <div className="mb-8 text-center">
                     {mandapName && (
-                        <h2 className="text-xl font-semibold text-orange-800 mb-2 tracking-wide uppercase">{mandapName}</h2>
+                        <h2 className="text-3xl font-bold text-orange-800 mb-3 tracking-wide uppercase">{mandapName}</h2>
                     )}
                     <h1 className="text-3xl font-bold text-gray-900">Event Schedule</h1>
                     <p className="text-gray-600 mt-2">
@@ -358,8 +384,8 @@ const Events = () => {
                             <button
                                 onClick={copyToClipboard}
                                 className={`mt-3 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold transition-all ${copied
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                                     }`}
                             >
                                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -369,9 +395,42 @@ const Events = () => {
 
                         {/* Devotee List */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Devotees ({devotees.length})
-                            </label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Devotees ({devotees.length})
+                                </label>
+                                {devotees.length > 0 && !loadingDevotees && (
+                                    <button
+                                        onClick={sendToAllDevotees}
+                                        disabled={sendingToAll}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all ${sendingToAll
+                                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                            : 'bg-green-600 text-white hover:bg-green-700'
+                                            }`}
+                                    >
+                                        <Send className="w-4 h-4" />
+                                        {sendingToAll
+                                            ? `Sending... ${sendProgress}/${devotees.length}`
+                                            : 'Send to All'
+                                        }
+                                    </button>
+                                )}
+                            </div>
+
+                            {sendingToAll && (
+                                <div className="mb-3">
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${(sendProgress / devotees.length) * 100}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 text-center mt-1">
+                                        Opening WhatsApp for each devotee...
+                                    </p>
+                                </div>
+                            )}
+
                             {loadingDevotees ? (
                                 <div className="text-center py-8 text-gray-500">
                                     Loading devotees...
