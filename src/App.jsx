@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import DonationForm from './pages/DonationForm';
 import OfferingsList from './pages/OfferingsList';
 import ManageUsers from './pages/ManageUsers';
+import Events from './pages/Events';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/donate" element={<DonationForm />} />
         <Route path="/offerings" element={<OfferingsList />} />
         <Route path="/manage-users" element={<ManageUsers />} />
+        <Route path="/events" element={<Events />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IndianRupee, MapPin, Phone, User, ScrollText, Sparkles, CheckCircle, History, Users, MessageCircle, MessageSquare } from 'lucide-react';
+import { IndianRupee, MapPin, Phone, User, ScrollText, Sparkles, CheckCircle, History, Users, MessageCircle, MessageSquare, Calendar } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
@@ -135,6 +135,15 @@ const DonationForm = () => {
                                 <span className="text-sm font-semibold">Staff</span>
                             </button>
                         )}
+
+                        <button
+                            onClick={() => navigate('/events')}
+                            className="p-2 bg-blue-100 rounded-full hover:bg-blue-200 text-blue-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                            title="View Events"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            <span className="text-sm font-semibold">Events</span>
+                        </button>
                     </div>
 
                     <div className="flex items-center justify-center gap-4 mb-4">
