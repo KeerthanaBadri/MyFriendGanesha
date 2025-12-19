@@ -231,10 +231,7 @@ const DonationForm = () => {
                         </div>
                     )}
                     <h1 className="text-4xl font-bold text-gray-900 mb-4">New Offering Entry</h1>
-                    <p className="text-lg text-gray-600 mb-2">Please fill in the devotee's details below.</p>
-                    <p className="text-sm text-orange-600 italic max-w-lg mx-auto leading-relaxed">
-                        "Ganesha does not remove every obstacle; he places some to protect you and removes others to guide you"
-                    </p>
+                    <p className="text-lg text-gray-600">Please fill in the devotee's details below.</p>
                 </div>
 
                 <motion.form
