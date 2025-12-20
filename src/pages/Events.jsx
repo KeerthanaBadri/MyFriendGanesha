@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarPlus, Calendar, ArrowLeft, Trash2, Clock, Send, X, Copy, Check, MessageCircle } from 'lucide-react';
+import { CalendarPlus, Calendar, ArrowLeft, Trash2, Clock, Send, X, Copy, Check, MessageSquare } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
 
 const Events = () => {
     const navigate = useNavigate();
     const [events, setEvents] = useState([]);
+    const [lastVisibleEvent, setLastVisibleEvent] = useState(null);
+    const [hasMoreEvents, setHasMoreEvents] = useState(true);
+    const [loadingEvents, setLoadingEvents] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         date: '',
@@ -27,27 +30,50 @@ const Events = () => {
     const role = localStorage.getItem('role');
     const mandapName = localStorage.getItem('mandapName');
 
+    const PAGE_SIZE = 5;
+
     useEffect(() => {
         fetchEvents();
     }, [mandapId]);
 
-    const fetchEvents = async () => {
-        if (!mandapId) return;
+    const fetchEvents = async (isLoadMore = false) => {
+        if (!mandapId || (loadingEvents) || (!hasMoreEvents && isLoadMore)) return;
+
         try {
-            const q = query(
-                collection(db, "events"),
-                where("mandapId", "==", mandapId)
-            );
+            setLoadingEvents(true);
+            let q;
+            const collectionRef = collection(db, "events");
+            const constraints = [
+                where("mandapId", "==", mandapId),
+                orderBy("date", "asc")
+            ];
+
+            if (isLoadMore && lastVisibleEvent) {
+                q = query(collectionRef, ...constraints, startAfter(lastVisibleEvent), limit(PAGE_SIZE));
+            } else {
+                q = query(collectionRef, ...constraints, limit(PAGE_SIZE));
+            }
+
             const querySnapshot = await getDocs(q);
+            const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+
             const eventsList = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            // Sort by date client-side
-            eventsList.sort((a, b) => new Date(a.date) - new Date(b.date));
-            setEvents(eventsList);
+
+            if (isLoadMore) {
+                setEvents(prev => [...prev, ...eventsList]);
+            } else {
+                setEvents(eventsList);
+            }
+
+            setLastVisibleEvent(lastDoc);
+            setHasMoreEvents(querySnapshot.docs.length === PAGE_SIZE);
         } catch (err) {
             console.error("Error fetching events: ", err);
+        } finally {
+            setLoadingEvents(false);
         }
     };
 
@@ -113,22 +139,39 @@ const Events = () => {
         return new Date(dateString) >= new Date().setHours(0, 0, 0, 0);
     };
 
-    const fetchDevotees = async () => {
+    const [lastVisibleDevotee, setLastVisibleDevotee] = useState(null);
+    const [hasMoreDevotees, setHasMoreDevotees] = useState(true);
+
+    const DEVOTEE_PAGE_SIZE = 50;
+
+    const fetchDevotees = async (isLoadMore = false) => {
+        if (loadingDevotees || (!hasMoreDevotees && isLoadMore)) return;
         setLoadingDevotees(true);
         try {
-            const q = query(
-                collection(db, "offerings"),
-                where("mandapId", "==", mandapId)
-            );
+            let q;
+            const collectionRef = collection(db, "offerings");
+            const constraints = [where("mandapId", "==", mandapId)];
+
+            if (isLoadMore && lastVisibleDevotee) {
+                q = query(collectionRef, ...constraints, startAfter(lastVisibleDevotee), limit(DEVOTEE_PAGE_SIZE));
+            } else {
+                q = query(collectionRef, ...constraints, limit(DEVOTEE_PAGE_SIZE));
+            }
+
             const querySnapshot = await getDocs(q);
-            const phoneNumbers = new Set();
+            const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+
+            const phoneNumbers = new Set(isLoadMore ? devotees : []);
             querySnapshot.docs.forEach(doc => {
                 const phone = doc.data().phone;
                 if (phone && phone.length >= 10) {
                     phoneNumbers.add(phone);
                 }
             });
+
             setDevotees(Array.from(phoneNumbers));
+            setLastVisibleDevotee(lastDoc);
+            setHasMoreDevotees(querySnapshot.docs.length === DEVOTEE_PAGE_SIZE);
         } catch (err) {
             console.error("Error fetching devotees: ", err);
         } finally {
@@ -145,7 +188,7 @@ const Events = () => {
 
     const buildNotificationMessage = () => {
         if (!selectedEvent) return '';
-        return `🙏 *${mandapName || 'Mandap'} - Event Notification*\n\n📅 *${selectedEvent.title}*\n🗓️ Date: ${formatDate(selectedEvent.date)}\n${selectedEvent.description ? `\n📝 ${selectedEvent.description}` : ''}\n\nYou are cordially invited! 🎉`;
+        return `${mandapName || 'Mandap'} - Event Notification\n\n${selectedEvent.title}\nDate: ${formatDate(selectedEvent.date)}\n${selectedEvent.description ? `\nNote: ${selectedEvent.description}` : ''}\n\nYou are cordially invited!`;
     };
 
     const copyToClipboard = async () => {
@@ -169,23 +212,21 @@ const Events = () => {
     const sendToAllDevotees = async () => {
         if (devotees.length === 0) return;
 
-        setSendingToAll(true);
-        setSendProgress(0);
-
         const message = encodeURIComponent(buildNotificationMessage());
 
-        for (let i = 0; i < devotees.length; i++) {
-            const phone = devotees[i];
-            window.open(`https://wa.me/91${phone}?text=${message}`, '_blank');
-            setSendProgress(i + 1);
+        // Detect OS for correct SMS separator
+        // iOS/Mac uses comma (,), Android/others use semicolon (;)
+        const isIOS = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+        const separator = isIOS ? ',' : ';';
 
-            // Small delay between opening tabs to avoid browser blocking
-            if (i < devotees.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-        }
+        // Combine all phone numbers with country code prefix
+        const combinedPhones = devotees.map(phone => `+91${phone}`).join(separator);
 
-        setSendingToAll(false);
+        // Open a single link with all recipients
+        window.open(`sms:${combinedPhones}?body=${message}`, '_blank');
+
+        setSendProgress(devotees.length);
+        setTimeout(() => setSendProgress(0), 2000);
     };
 
     return (
@@ -349,26 +390,35 @@ const Events = () => {
                                     <p>No events scheduled yet.</p>
                                 </div>
                             )}
+                            {hasMoreEvents && (
+                                <button
+                                    onClick={() => fetchEvents(true)}
+                                    disabled={loadingEvents}
+                                    className="w-full py-3 bg-white border border-orange-100 text-orange-700 font-semibold rounded-xl hover:bg-orange-50 transition-colors disabled:opacity-50 mt-4"
+                                >
+                                    {loadingEvents ? 'Loading...' : 'Load More Events'}
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 </div>
             </div>
 
             {/* Notification Modal */}
-            {showNotifyModal && (
+            {showNotifyModal && selectedEvent && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 pt-20"
                     onClick={closeModal}
                 >
                     <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
+                        initial={{ scale: 0.9, y: 20 }}
+                        animate={{ scale: 1, y: 0 }}
+                        className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col relative"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center justify-between mb-4 p-6 pb-0">
                             <h3 className="text-xl font-bold text-gray-900">Send to Devotees</h3>
                             <button
                                 onClick={closeModal}
@@ -378,97 +428,112 @@ const Events = () => {
                             </button>
                         </div>
 
-                        {/* Message Preview */}
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Message to Send</label>
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm">
-                                {buildNotificationMessage()}
+                        <div className="p-6 overflow-y-auto">
+                            {/* Message Preview */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Message to Send</label>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm">
+                                    {buildNotificationMessage()}
+                                </div>
+                                <button
+                                    onClick={copyToClipboard}
+                                    className={`mt-3 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold transition-all ${copied
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                        }`}
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                    {copied ? 'Copied!' : 'Copy Message'}
+                                </button>
                             </div>
-                            <button
-                                onClick={copyToClipboard}
-                                className={`mt-3 w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold transition-all ${copied
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                    }`}
-                            >
-                                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                {copied ? 'Copied!' : 'Copy Message'}
-                            </button>
-                        </div>
 
-                        {/* Devotee List */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Devotees ({devotees.length})
-                                </label>
-                                {devotees.length > 0 && !loadingDevotees && (
-                                    <button
-                                        onClick={sendToAllDevotees}
-                                        disabled={sendingToAll}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all ${sendingToAll
-                                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                            : 'bg-green-600 text-white hover:bg-green-700'
-                                            }`}
-                                    >
-                                        <Send className="w-4 h-4" />
-                                        {sendingToAll
-                                            ? `Sending... ${sendProgress}/${devotees.length}`
-                                            : 'Send to All'
-                                        }
-                                    </button>
+                            {/* Devotee List */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Loaded Devotees ({devotees.length})
+                                    </label>
+                                    {devotees.length > 0 && !loadingDevotees && (
+                                        <button
+                                            onClick={sendToAllDevotees}
+                                            disabled={sendingToAll}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all ${sendingToAll
+                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                : 'bg-green-600 text-white hover:bg-green-700'
+                                                }`}
+                                        >
+                                            <Send className="w-4 h-4" />
+                                            {sendingToAll
+                                                ? `Opening Messages...`
+                                                : 'Send Group SMS'
+                                            }
+                                        </button>
+                                    )}
+                                </div>
+
+                                {sendingToAll && (
+                                    <div className="mb-3">
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                                style={{ width: `100%` }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-gray-500 text-center mt-1">
+                                            Preparing Group Message...
+                                        </p>
+                                    </div>
+                                )}
+
+                                {loadingDevotees ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        Loading devotees...
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+                                            {devotees.map((phone, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                                                >
+                                                    <span className="font-mono text-sm">{phone}</span>
+                                                    <a
+                                                        href={`sms:+91${phone}?body=${encodeURIComponent(buildNotificationMessage())}`}
+                                                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors"
+                                                    >
+                                                        <MessageSquare className="w-3 h-3" />
+                                                        Send SMS
+                                                    </a>
+                                                </div>
+                                            ))}
+
+                                            {hasMoreDevotees && (
+                                                <button
+                                                    onClick={() => fetchDevotees(true)}
+                                                    disabled={loadingDevotees}
+                                                    className="w-full py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50 text-sm"
+                                                >
+                                                    {loadingDevotees ? 'Loading...' : 'Load More Devotees'}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {!loadingDevotees && devotees.length === 0 && (
+                                            <div className="text-center py-8 text-gray-500">
+                                                <p>No devotees found for this mandap.</p>
+                                                <p className="text-sm mt-1">Devotees are added when they make offerings.</p>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
-
-                            {sendingToAll && (
-                                <div className="mb-3">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                            style={{ width: `${(sendProgress / devotees.length) * 100}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-gray-500 text-center mt-1">
-                                        Opening WhatsApp for each devotee...
-                                    </p>
-                                </div>
-                            )}
-
-                            {loadingDevotees ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    Loading devotees...
-                                </div>
-                            ) : devotees.length > 0 ? (
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    {devotees.map((phone, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
-                                        >
-                                            <span className="font-mono text-sm">{phone}</span>
-                                            <a
-                                                href={`https://wa.me/91${phone}?text=${encodeURIComponent(buildNotificationMessage())}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors"
-                                            >
-                                                <MessageCircle className="w-3 h-3" />
-                                                Send
-                                            </a>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    <p>No devotees found for this mandap.</p>
-                                    <p className="text-sm mt-1">Devotees are added when they make offerings.</p>
-                                </div>
-                            )}
                         </div>
                     </motion.div>
                 </motion.div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

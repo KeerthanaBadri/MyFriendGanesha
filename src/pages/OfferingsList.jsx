@@ -18,26 +18,30 @@ const OfferingsList = () => {
 
     const PAGE_SIZE = 20;
 
-    const fetchOfferings = async (isLoadMore = false) => {
+    const fetchOfferings = async (isLoadMore = false, passedSearchTerm = searchTerm) => {
         if (loading || (!hasMore && isLoadMore)) return;
 
         try {
             setLoading(true);
 
             let q;
-            if (isLoadMore && lastVisible) {
-                q = query(
-                    collection(db, "offerings"),
-                    where("mandapId", "==", mandapId),
-                    startAfter(lastVisible),
-                    limit(PAGE_SIZE)
-                );
+            const collectionRef = collection(db, "offerings");
+            const constraints = [where("mandapId", "==", mandapId)];
+
+            // Server-side search logic
+            if (passedSearchTerm.trim()) {
+                const search = passedSearchTerm.trim();
+                // Simple prefix search trick for Firestore
+                constraints.push(where("name", ">=", search));
+                constraints.push(where("name", "<=", search + '\uf8ff'));
             } else {
-                q = query(
-                    collection(db, "offerings"),
-                    where("mandapId", "==", mandapId),
-                    limit(PAGE_SIZE)
-                );
+                constraints.push(orderBy("timestamp", "desc"));
+            }
+
+            if (isLoadMore && lastVisible) {
+                q = query(collectionRef, ...constraints, startAfter(lastVisible), limit(PAGE_SIZE));
+            } else {
+                q = query(collectionRef, ...constraints, limit(PAGE_SIZE));
             }
 
             const querySnapshot = await getDocs(q);
@@ -63,16 +67,18 @@ const OfferingsList = () => {
         }
     };
 
+    // Debounced search effect
     useEffect(() => {
-        if (mandapId) {
-            fetchOfferings();
-        }
-    }, [mandapId]);
+        if (!mandapId) return;
 
-    const filteredOfferings = offerings.filter(offering =>
-        offering.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        offering.gothram.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+        const timer = setTimeout(() => {
+            setLastVisible(null);
+            setHasMore(true);
+            fetchOfferings(false, searchTerm);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm, mandapId]);
 
     const totalAmount = offerings.reduce((sum, item) => sum + Number(item.rupees), 0);
 
@@ -163,7 +169,7 @@ const OfferingsList = () => {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                             <input
                                 type="text"
-                                placeholder="Search in loaded records..."
+                                placeholder="Search by name directly from database..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all"
@@ -182,9 +188,9 @@ const OfferingsList = () => {
 
                     {/* List */}
                     <div className="divide-y divide-orange-50">
-                        {filteredOfferings.length > 0 ? (
+                        {offerings.length > 0 ? (
                             <>
-                                {filteredOfferings.map((offering, index) => (
+                                {offerings.map((offering, index) => (
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}

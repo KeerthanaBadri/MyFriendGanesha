@@ -8,6 +8,9 @@ import { collection, query, where, getDocs, deleteDoc, doc, getDoc, setDoc } fro
 const ManageUsers = () => {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
+    const [lastVisible, setLastVisible] = useState(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         username: '',
         password: ''
@@ -19,6 +22,8 @@ const ManageUsers = () => {
     const role = localStorage.getItem('role');
     const mandapName = localStorage.getItem('mandapName');
 
+    const PAGE_SIZE = 10;
+
     useEffect(() => {
         if (role !== 'admin') {
             navigate('/donate');
@@ -27,17 +32,47 @@ const ManageUsers = () => {
         fetchUsers();
     }, []);
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (isLoadMore = false) => {
+        if (loading || (!hasMore && isLoadMore)) return;
+
         try {
-            const q = query(collection(db, "users"), where("mandapId", "==", mandapId));
+            setLoading(true);
+            let q;
+            if (isLoadMore && lastVisible) {
+                q = query(
+                    collection(db, "users"),
+                    where("mandapId", "==", mandapId),
+                    startAfter(lastVisible),
+                    limit(PAGE_SIZE)
+                );
+            } else {
+                q = query(
+                    collection(db, "users"),
+                    where("mandapId", "==", mandapId),
+                    limit(PAGE_SIZE)
+                );
+            }
+
             const querySnapshot = await getDocs(q);
+            const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+
             const usersList = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            setUsers(usersList);
+
+            if (isLoadMore) {
+                setUsers(prev => [...prev, ...usersList]);
+            } else {
+                setUsers(usersList);
+            }
+
+            setLastVisible(lastDoc);
+            setHasMore(querySnapshot.docs.length === PAGE_SIZE);
         } catch (err) {
             console.error("Error fetching users: ", err);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -201,6 +236,16 @@ const ManageUsers = () => {
                                     </div>
                                 </div>
                             ))}
+
+                            {hasMore && (
+                                <button
+                                    onClick={() => fetchUsers(true)}
+                                    disabled={loading}
+                                    className="w-full py-2 bg-white/50 border border-orange-100 text-orange-700 font-semibold rounded-xl hover:bg-orange-100 transition-colors disabled:opacity-50 text-sm"
+                                >
+                                    {loading ? 'Loading...' : 'Load More Users'}
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 </div>
