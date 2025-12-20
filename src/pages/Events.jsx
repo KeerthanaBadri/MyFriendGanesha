@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarPlus, Calendar, ArrowLeft, Trash2, Clock, Send, X, Copy, Check, MessageSquare } from 'lucide-react';
+import { CalendarPlus, Calendar, ArrowLeft, Trash2, Clock, Send, X, Copy, Check, MessageSquare, IndianRupee } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
 
@@ -16,7 +16,7 @@ const Events = () => {
         date: '',
         description: ''
     });
-    const [error, setError] = useState('');
+    const [error, setError] = useState(null);
     const [success, setSuccess] = useState('');
     const [showNotifyModal, setShowNotifyModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -41,37 +41,29 @@ const Events = () => {
 
         try {
             setLoadingEvents(true);
-            let q;
-            const collectionRef = collection(db, "events");
-            const constraints = [
-                where("mandapId", "==", mandapId),
-                orderBy("date", "asc")
-            ];
+            setError(null);
 
-            if (isLoadMore && lastVisibleEvent) {
-                q = query(collectionRef, ...constraints, startAfter(lastVisibleEvent), limit(PAGE_SIZE));
-            } else {
-                q = query(collectionRef, ...constraints, limit(PAGE_SIZE));
-            }
+            // Fetch everything for the mandap and sort in memory for now
+            // This avoids "Missing Index" errors which block the list from loading
+            const collectionRef = collection(db, "events");
+            const q = query(collectionRef, where("mandapId", "==", mandapId));
 
             const querySnapshot = await getDocs(q);
-            const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-
-            const eventsList = querySnapshot.docs.map(doc => ({
+            let eventsList = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
 
-            if (isLoadMore) {
-                setEvents(prev => [...prev, ...eventsList]);
-            } else {
-                setEvents(eventsList);
-            }
+            // Sort by date (asc)
+            eventsList.sort((a, b) => {
+                return (a.date || '').localeCompare(b.date || '');
+            });
 
-            setLastVisibleEvent(lastDoc);
-            setHasMoreEvents(querySnapshot.docs.length === PAGE_SIZE);
+            setEvents(eventsList);
+            setHasMoreEvents(false); // Disable pagination since we're loading all for reliability
         } catch (err) {
             console.error("Error fetching events: ", err);
+            setError("Failed to load events. Please check your connection.");
         } finally {
             setLoadingEvents(false);
         }
@@ -349,7 +341,22 @@ const Events = () => {
                         </div>
 
                         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                            {events.length > 0 ? (
+                            {loadingEvents ? (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
+                                    <p className="text-gray-500">Loading events...</p>
+                                </div>
+                            ) : error ? (
+                                <div className="text-center py-8 bg-red-50 rounded-xl border border-red-100">
+                                    <p className="text-red-600 font-medium">{error}</p>
+                                    <button
+                                        onClick={() => fetchEvents()}
+                                        className="mt-4 text-sm font-bold text-red-700 underline"
+                                    >
+                                        Try Again
+                                    </button>
+                                </div>
+                            ) : events.length > 0 ? (
                                 events.map((event) => (
                                     <div
                                         key={event.id}

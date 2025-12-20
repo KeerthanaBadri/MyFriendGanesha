@@ -18,6 +18,7 @@ const ExpenseManager = () => {
     const [submitting, setSubmitting] = useState(false);
     const [lastVisible, setLastVisible] = useState(null);
     const [hasMore, setHasMore] = useState(false);
+    const [error, setError] = useState(null);
 
     const navigate = useNavigate();
     const mandapId = localStorage.getItem('mandapId');
@@ -47,37 +48,35 @@ const ExpenseManager = () => {
 
     const fetchExpenses = async (isLoadMore = false) => {
         setLoading(!isLoadMore);
+        setError(null);
         try {
-            let q = query(
+            // Fetch everything for the mandap and sort in memory for now
+            // This avoids "Missing Index" errors which block the list from loading
+            const q = query(
                 collection(db, "expenses"),
-                where("mandapId", "==", mandapId),
-                orderBy("date", "desc"),
-                limit(15)
+                where("mandapId", "==", mandapId)
             );
 
-            if (isLoadMore && lastVisible) {
-                q = query(
-                    collection(db, "expenses"),
-                    where("mandapId", "==", mandapId),
-                    orderBy("date", "desc"),
-                    startAfter(lastVisible),
-                    limit(15)
-                );
-            }
-
             const querySnapshot = await getDocs(q);
-            const newExpenses = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            let allExpenses = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                // Ensure amount is a number for sorting/display
+                amount: Number(doc.data().amount)
+            }));
 
-            if (isLoadMore) {
-                setExpenses(prev => [...prev, ...newExpenses]);
-            } else {
-                setExpenses(newExpenses);
-            }
+            // Sort by date (desc) then by timestamp (desc) to show newest first
+            allExpenses.sort((a, b) => {
+                const dateCompare = (b.date || '').localeCompare(a.date || '');
+                if (dateCompare !== 0) return dateCompare;
+                return (b.timestamp || '').localeCompare(a.timestamp || '');
+            });
 
-            setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-            setHasMore(querySnapshot.docs.length === 15);
+            setExpenses(allExpenses);
+            setHasMore(false); // Disable pagination since we're loading all for reliability
         } catch (err) {
             console.error("Error fetching expenses:", err);
+            setError("Failed to load expenses. Please check your internet connection.");
         } finally {
             setLoading(false);
         }
@@ -247,6 +246,16 @@ const ExpenseManager = () => {
                         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-orange-50">
                             <Loader2 className="w-10 h-10 text-orange-600 animate-spin mb-4" />
                             <p className="text-gray-500">Loading expenses...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-10 bg-red-50 rounded-2xl border border-red-100">
+                            <p className="text-red-600 font-medium">{error}</p>
+                            <button
+                                onClick={() => fetchExpenses()}
+                                className="mt-4 text-sm font-bold text-red-700 underline"
+                            >
+                                Try Again
+                            </button>
                         </div>
                     ) : expenses.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-orange-50">
