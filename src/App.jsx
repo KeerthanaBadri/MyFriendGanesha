@@ -7,6 +7,7 @@ import OfferingsList from './pages/OfferingsList';
 import ManageUsers from './pages/ManageUsers';
 import Events from './pages/Events';
 import ReceiptView from './pages/ReceiptView';
+import ExpenseManager from './pages/ExpenseManager';
 
 const ProtectedRoute = ({ children }) => {
   const user = localStorage.getItem('currentUser');
@@ -67,6 +68,14 @@ function App() {
           element={
             <AdminRoute>
               <ManageUsers />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/expenses"
+          element={
+            <AdminRoute>
+              <ExpenseManager />
             </AdminRoute>
           }
         />

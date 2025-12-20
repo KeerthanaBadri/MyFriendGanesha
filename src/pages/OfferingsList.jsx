@@ -118,13 +118,23 @@ const OfferingsList = () => {
             {/* Header Buttons */}
             <div className="absolute top-4 right-4 md:top-8 md:right-8 flex gap-3 z-50">
                 {role === 'admin' && (
-                    <button
-                        onClick={() => navigate('/manage-users')}
-                        className="p-2 bg-purple-100 rounded-full hover:bg-purple-200 text-purple-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
-                        title="Manage Staff"
-                    >
-                        <span className="text-sm font-semibold">Staff</span>
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => navigate('/manage-users')}
+                            className="p-2 bg-purple-100 rounded-full hover:bg-purple-200 text-purple-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                            title="Manage Staff"
+                        >
+                            <span className="text-sm font-semibold">Staff</span>
+                        </button>
+                        <button
+                            onClick={() => navigate('/expenses')}
+                            className="p-2 bg-green-100 rounded-full hover:bg-green-200 text-green-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                            title="Manage Expenses"
+                        >
+                            <IndianRupee className="w-4 h-4" />
+                            <span className="text-sm font-semibold">Expenses</span>
+                        </button>
+                    </div>
                 )}
 
                 <button

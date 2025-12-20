@@ -240,12 +240,23 @@ const Events = () => {
             }}
         >
             <div className="max-w-4xl mx-auto">
-                <button
-                    onClick={() => navigate('/donate')}
-                    className="flex items-center text-orange-700 hover:text-orange-900 font-medium transition-colors mb-6"
-                >
-                    <ArrowLeft className="w-5 h-5 mr-2" /> Back to Dashboard
-                </button>
+                <div className="flex justify-between items-center mb-6">
+                    <button
+                        onClick={() => navigate('/donate')}
+                        className="flex items-center text-orange-700 hover:text-orange-900 font-medium transition-colors"
+                    >
+                        <ArrowLeft className="w-5 h-5 mr-2" /> Back to Dashboard
+                    </button>
+                    {role === 'admin' && (
+                        <button
+                            onClick={() => navigate('/expenses')}
+                            className="p-2 bg-green-100 rounded-full hover:bg-green-200 text-green-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                        >
+                            <IndianRupee className="w-4 h-4" />
+                            <span className="text-sm font-semibold">Expenses</span>
+                        </button>
+                    )}
+                </div>
 
                 <div className="mb-8 text-center">
                     {mandapName && (

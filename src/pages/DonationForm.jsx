@@ -282,14 +282,24 @@ ${receiptUrl}
                         </button>
 
                         {role === 'admin' && (
-                            <button
-                                onClick={() => navigate('/manage-users')}
-                                className="p-2 bg-purple-100 rounded-full hover:bg-purple-200 text-purple-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
-                                title="Manage Staff"
-                            >
-                                <Users className="w-4 h-4" />
-                                <span className="text-sm font-semibold">Staff</span>
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => navigate('/manage-users')}
+                                    className="p-2 bg-purple-100 rounded-full hover:bg-purple-200 text-purple-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                                    title="Manage Staff"
+                                >
+                                    <Users className="w-4 h-4" />
+                                    <span className="text-sm font-semibold">Staff</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate('/expenses')}
+                                    className="p-2 bg-green-100 rounded-full hover:bg-green-200 text-green-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                                    title="Manage Expenses"
+                                >
+                                    <IndianRupee className="w-4 h-4" />
+                                    <span className="text-sm font-semibold">Expenses</span>
+                                </button>
+                            </>
                         )}
 
                         <button

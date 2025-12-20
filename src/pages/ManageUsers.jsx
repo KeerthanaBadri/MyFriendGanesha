@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UserPlus, Users, ArrowLeft, Trash2, Shield, User } from 'lucide-react';
+import { UserPlus, Users, ArrowLeft, Trash2, Shield, User, IndianRupee } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -144,12 +144,23 @@ const ManageUsers = () => {
             }}
         >
             <div className="max-w-4xl mx-auto">
-                <button
-                    onClick={() => navigate('/donate')}
-                    className="flex items-center text-orange-700 hover:text-orange-900 font-medium transition-colors mb-6"
-                >
-                    <ArrowLeft className="w-5 h-5 mr-2" /> Back to Dashboard
-                </button>
+                <div className="flex justify-between items-center mb-6">
+                    <button
+                        onClick={() => navigate('/donate')}
+                        className="flex items-center text-orange-700 hover:text-orange-900 font-medium transition-colors"
+                    >
+                        <ArrowLeft className="w-5 h-5 mr-2" /> Back to Dashboard
+                    </button>
+                    {role === 'admin' && (
+                        <button
+                            onClick={() => navigate('/expenses')}
+                            className="p-2 bg-green-100 rounded-full hover:bg-green-200 text-green-700 transition-colors flex items-center gap-2 px-4 shadow-sm"
+                        >
+                            <IndianRupee className="w-4 h-4" />
+                            <span className="text-sm font-semibold">Expenses</span>
+                        </button>
+                    )}
+                </div>
 
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold text-gray-900">Manage Staff</h1>
