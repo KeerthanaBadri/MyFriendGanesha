@@ -14,6 +14,7 @@ const DonationForm = () => {
         rupees: ''
     });
     const [submitted, setSubmitted] = useState(false);
+    const [submittedDocId, setSubmittedDocId] = useState('');
     const [errors, setErrors] = useState({});
     const navigate = useNavigate();
     const role = localStorage.getItem('role');
@@ -85,13 +86,15 @@ const DonationForm = () => {
             const currentUser = localStorage.getItem('currentUser') || 'anonymous';
             const mandapId = localStorage.getItem('mandapId');
 
-            await addDoc(collection(db, "offerings"), {
+            const docRef = await addDoc(collection(db, "offerings"), {
                 ...formData,
                 submittedBy: currentUser,
                 mandapId: mandapId,
+                mandapName: mandapName, // Store at time of offering
                 timestamp: new Date().toISOString()
             });
 
+            setSubmittedDocId(docRef.id);
             setSubmitted(true);
         } catch (err) {
             console.error("Error adding document: ", err);
@@ -109,11 +112,12 @@ const DonationForm = () => {
         });
         setErrors({});
         setSubmitted(false);
+        setSubmittedDocId('');
     };
 
     if (submitted) {
-        // Generate a random receipt number for visual effect
-        const receiptNo = `OFF-${Math.floor(100000 + Math.random() * 900000)}`;
+        // Generate a receipt number based on ID
+        const receiptNo = `OFF-${submittedDocId.slice(0, 6).toUpperCase()}`;
         const dateStr = new Date().toLocaleDateString('en-IN', {
             day: 'numeric',
             month: 'short',
@@ -121,6 +125,8 @@ const DonationForm = () => {
             hour: '2-digit',
             minute: '2-digit'
         });
+
+        const receiptUrl = `${window.location.origin}/receipt/${submittedDocId}`;
 
         const receiptMessage = `🙏 *Devotional Offering Receipt - ${mandapName}*
 
@@ -131,9 +137,10 @@ Devotee: ${formData.name}
 Gothram: ${formData.gothram}
 Amount: ₹${formData.rupees}
 
-"Ganesha will bless you with wisdom and prosperity."
+View your digital receipt:
+${receiptUrl}
 
-Thank you for your generous contribution to ${mandapName}! 🎉`;
+"Ganesha will bless you with wisdom and prosperity."`;
 
         const encodedMessage = encodeURIComponent(receiptMessage);
 

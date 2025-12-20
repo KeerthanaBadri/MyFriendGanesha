@@ -6,6 +6,7 @@ import DonationForm from './pages/DonationForm';
 import OfferingsList from './pages/OfferingsList';
 import ManageUsers from './pages/ManageUsers';
 import Events from './pages/Events';
+import ReceiptView from './pages/ReceiptView';
 
 const ProtectedRoute = ({ children }) => {
   const user = localStorage.getItem('currentUser');
@@ -69,6 +70,9 @@ function App() {
             </AdminRoute>
           }
         />
+
+        {/* Public Routes */}
+        <Route path="/receipt/:id" element={<ReceiptView />} />
 
         <Route path="/" element={<Navigate to="/login" replace />} />
 
