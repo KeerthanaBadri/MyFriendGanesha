@@ -14,6 +14,7 @@ const ExpenseManager = () => {
     });
     const [expenses, setExpenses] = useState([]);
     const [totalExpenses, setTotalExpenses] = useState(0);
+    const [totalCollections, setTotalCollections] = useState(0);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [lastVisible, setLastVisible] = useState(null);
@@ -33,7 +34,20 @@ const ExpenseManager = () => {
         }
         fetchExpenses();
         fetchTotalExpenses();
+        fetchTotalCollections();
     }, [role, mandapId]);
+
+    const fetchTotalCollections = async () => {
+        if (!mandapId) return;
+        try {
+            const q = query(collection(db, "offerings"), where("mandapId", "==", mandapId));
+            const querySnapshot = await getDocs(q);
+            const total = querySnapshot.docs.reduce((acc, doc) => acc + Number(doc.data().rupees || 0), 0);
+            setTotalCollections(total);
+        } catch (err) {
+            console.error("Error fetching total collections:", err);
+        }
+    };
 
     const fetchTotalExpenses = async () => {
         try {
@@ -112,6 +126,7 @@ const ExpenseManager = () => {
 
             fetchExpenses();
             fetchTotalExpenses();
+            fetchTotalCollections();
         } catch (err) {
             console.error("Error adding expense:", err);
         } finally {
@@ -149,9 +164,21 @@ const ExpenseManager = () => {
                         </div>
                     </div>
 
-                    <div className="bg-orange-50 px-4 py-1.5 rounded-full border border-orange-100 flex items-center gap-2">
-                        <TrendingDown className="w-4 h-4 text-orange-600" />
-                        <span className="text-orange-900 font-bold text-sm">₹{totalExpenses.toLocaleString()}</span>
+                    <div className="flex items-center gap-3">
+                        <div className="hidden sm:flex flex-col items-end px-3 border-r border-orange-100 text-right">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Collected</span>
+                            <span className="text-sm font-bold text-green-700">₹{totalCollections.toLocaleString()}</span>
+                        </div>
+                        <div className="hidden sm:flex flex-col items-end px-3 border-r border-orange-100 text-right">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Spent</span>
+                            <span className="text-sm font-bold text-red-600">₹{totalExpenses.toLocaleString()}</span>
+                        </div>
+                        <div className="bg-orange-50 px-4 py-1.5 rounded-full border border-orange-100 flex flex-col items-center">
+                            <span className="text-[10px] text-orange-600 uppercase font-bold tracking-tighter">Balance</span>
+                            <span className={`text-sm font-black ${(totalCollections - totalExpenses) >= 0 ? 'text-orange-900' : 'text-red-700'}`}>
+                                ₹{(totalCollections - totalExpenses).toLocaleString()}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
