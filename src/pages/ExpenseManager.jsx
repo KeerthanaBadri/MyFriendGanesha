@@ -141,6 +141,7 @@ const ExpenseManager = () => {
             await deleteDoc(doc(db, "expenses", id));
             setExpenses(prev => prev.filter(exp => exp.id !== id));
             fetchTotalExpenses();
+            fetchTotalCollections();
         } catch (err) {
             console.error("Error deleting expense:", err);
         }
